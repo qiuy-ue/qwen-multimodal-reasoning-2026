@@ -1,0 +1,13 @@
+# Public summary only. Private paths and data identifiers are intentionally omitted.
+model_family: qwen3.5-0.8b-multimodal
+stage: supervised_fine_tuning
+method: lora
+target_modules: all-linear
+lora_rank: 16
+lora_alpha: 32
+epochs: 2
+learning_rate: 1.0e-4
+effective_batch_size: 16
+max_sequence_length: 2048
+seed: 42
+reported_preliminary_score: 41.8

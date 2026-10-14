@@ -1,43 +1,140 @@
-# 千问杯多模态推理挑战赛
+# Qwen Multimodal Reasoning Challenge
 
-## 项目简介
+> A public technical archive of a two-stage post-training pipeline for the 2026 Qwen Multimodal Reasoning Challenge.
 
-本项目记录参加琶洲算法大赛 AI 大模型算法优选赛「千问杯：千问多模态推理挑战赛」决赛的技术方案与实验结论。
+## Overview
 
-- 决赛提交：rlx30
-- 决赛平台最高成绩：20.2 分
-- 初赛成绩：41.8 分
-- 主要路线：教师蒸馏 SFT + GRPO 小剂量强化学习
-- 评测能力：数值、计数、空间、物理常识、感知与关联推理
+This project documents the training decisions, controlled experiments, and release boundaries behind two competition submissions built on a Qwen3.5-0.8B multimodal model.
 
-## 技术路线
+The system follows a simple division of labor:
 
-### 阶段一：教师蒸馏与 SFT
+1. Teacher distillation and supervised fine-tuning establish broad coverage across six reasoning capabilities.
+2. A small GRPO update calibrates the model against a selected, verifiable reasoning signal while keeping the preliminary model as the only starting point.
 
-使用 Qwen3.6-27B 教师模型构建多模态指令数据，再从 113,159 条蒸馏样本中筛选出 24,251 条训练数据，对 Qwen3.5-0.8B 多模态模型进行 LoRA 微调。
+The public repository contains documentation and sanitized configuration summaries. It does not contain model weights, private evaluation data, original server logs, or the competition submission archives.
 
-### 阶段二：GRPO 强化学习
+## Competition Results
 
-以初赛模型作为合规起点，使用 1,709 条 RAVEN 抽象推理数据进行 GRPO 训练。最终采用 30 步、学习率 1e-6、KL 系数 0.2、组大小 K=8 的小剂量配置。
+| Submission | Stage | Score | Role |
+| --- | --- | ---: | --- |
+| **V4** | Preliminary round | **41.8** | SFT model and the compliant starting point for the final-round RL experiments |
+| **RLX30** | Final round | **20.2** | V4 followed by a 30-step, small-budget GRPO update |
 
-## 主要发现
+The two scores come from different official evaluation settings and should not be compared as if they were measured on the same test set. Within the final-round protocol, V4 provided an 18.2-point baseline and RLX30 reached 20.2.
 
-- 小剂量 RL 更适合 0.8B 级别模型，30 步配置取得最高决赛读数。
-- 训练奖励的答案提取与归一化规则和平台评测口径保持一致。
-- 数据池与隐藏评测分布的匹配度比训练池覆盖面更重要。
-- 同权重单变量消融显示，平台默认采样配置优于 greedy 解码。
+## The Main Idea
 
-## 公开材料
+```mermaid
+flowchart LR
+    A[Qwen3.5-0.8B multimodal base] --> B[Teacher distillation]
+    B --> C[Curated SFT dataset\n24,251 examples]
+    C --> D[V4\nPreliminary score 41.8]
+    D --> E[GRPO\nRAVEN abstract reasoning pool]
+    E --> F[RLX30\n30 steps, beta 0.2]
+    F --> G[Final score 20.2]
+```
 
-- [决赛技术方案](docs/technical-plan.md)
-- [脚本与日志说明](docs/reproduction-notes.md)
+The architecture shown in the competition presentation has been redrawn as a public Mermaid diagram. The original presentation is not uploaded.
 
-答辩演示文稿和原始训练日志包未直接上传，避免公开内部服务器路径、工作目录和未经整理的运行环境信息。需要复现时，请先根据公开说明替换本地模型、数据集和设备路径。
+## Capability Coverage
 
-## 复现说明
+The evaluation covered six multimodal reasoning dimensions:
 
-本项目提供方法、超参数和实验记录，不包含基础模型权重、比赛私有评测集或训练图片。复现需要自行准备兼容的 Qwen 多模态模型、公开数据集和相应训练环境。
+- numeric reasoning
+- counting
+- spatial reasoning
+- physics commonsense
+- perception
+- association
 
-## 相关主页
+The model receives mixed image-text inputs and produces a structured answer in the format expected by the official evaluator.
 
-- GitHub: [@qiuy-ue](https://github.com/qiuy-ue)
+## V4: Preliminary SFT System
+
+V4 was the strongest preliminary submission and the only permitted starting point for the final-round RL stage.
+
+The distillation pipeline produced 113,159 usable multimodal instruction examples from a 113,164-image candidate pool. The curated `train_v4` set contained 24,251 examples after filtering and quality checks.
+
+| Setting | Value |
+| --- | --- |
+| Fine-tuning method | LoRA, all-linear target modules |
+| LoRA rank / alpha | 16 / 32 |
+| Epochs | 2 |
+| Learning rate | 1e-4 |
+| Effective batch size | 16 |
+| Maximum sequence length | 2,048 |
+| Random seed | 42 |
+| Preliminary score | **41.8** |
+
+## RLX30: Final GRPO System
+
+RLX30 starts from the V4 submission and applies a deliberately small GRPO update. The goal was calibration rather than a large policy shift, because larger updates caused the 0.8B model to overfit the RL pool and forget broader capabilities.
+
+| Setting | Value |
+| --- | --- |
+| Algorithm | GRPO |
+| RL pool | 1,709 RAVEN-style abstract reasoning examples |
+| Group size | 8 |
+| Training steps | **30** |
+| Learning rate | 1e-6 |
+| KL coefficient | 0.2 |
+| Maximum completion length | 256 tokens |
+| Random seed | 42 |
+| Final score | **20.2** |
+
+### Reward design
+
+```text
+correct and extractable answer  ->  1.00
+extractable but incorrect      ->  0.05
+missing structured answer      ->  0.00
+```
+
+The answer extractor and normalization rules were aligned with the official evaluation convention.
+
+## Controlled Experiments
+
+| Experiment | Score | Observation |
+| --- | ---: | --- |
+| RLX30, abstract pool, 30 steps | **20.2** | Best final artifact |
+| 10 RL steps | 19.2 | Smaller improvement |
+| 20 RL steps | 15.2 | Unstable update |
+| 50 RL steps | 17.8 | More forgetting |
+| 60 RL steps | 16.8 | Excessive update |
+| Physics-only pool | 18.8 | Weak transfer to the hidden evaluation distribution |
+| Counting-only pool | 16.4 | Negative result |
+| Group size 16 | 16.6 | More within-pool learning, worse generalization |
+| Greedy decoding ablation | 16.8 | Sampling was important under the platform protocol |
+
+The main engineering conclusion was that a small model benefits from a constrained RL update anchored to the compliant preliminary model.
+
+## Repository Structure
+
+```text
+.
+├── README.md
+├── configs/
+│   ├── v4-sft.example.yaml
+│   └── rlx30-grpo.example.yaml
+├── docs/
+│   ├── experiment-table.md
+│   └── reproduction-notes.md
+└── scripts/
+    └── README.md
+```
+
+## Reproduction Scope
+
+This is a technical archive, not a turnkey reproduction package. A full reproduction requires compatible Qwen multimodal checkpoints, legally shareable data, and an accelerator environment.
+
+The following items are intentionally excluded:
+
+- model weights and `model.safetensors`
+- private or hidden evaluation data
+- original server paths and raw logs
+- competition submission ZIP files
+- credentials, tokens, and internal endpoints
+
+## Attribution
+
+Maintained as a personal competition archive by [qiuy-ue](https://github.com/qiuy-ue). Competition data and evaluation remain subject to the organizer's rules.

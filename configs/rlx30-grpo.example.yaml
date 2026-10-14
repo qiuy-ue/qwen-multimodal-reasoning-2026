@@ -1,0 +1,14 @@
+# Public summary only. Private paths and data identifiers are intentionally omitted.
+model_family: qwen3.5-0.8b-multimodal
+stage: grpo_post_training
+start_from: v4
+algorithm: grpo
+rl_pool_description: raven_style_abstract_reasoning
+rl_pool_size: 1709
+group_size: 8
+steps: 30
+learning_rate: 1.0e-6
+kl_coefficient: 0.2
+max_completion_length: 256
+seed: 42
+reported_final_score: 20.2

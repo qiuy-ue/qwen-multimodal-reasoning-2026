@@ -1,27 +1,16 @@
-# 复现与公开范围说明
+# Reproduction Notes
 
-## 已公开内容
+The public archive records the model family, training stages, public hyperparameters, reward definition, ablation results, and release boundaries.
 
-本仓库公开项目背景、训练路线、关键超参数和实验结论，便于阅读技术思路和复盘实验设计。
+The following remain private or competition-controlled: trained weights, original images, hidden questions, raw server logs, and submission archives.
 
-## 未公开内容
+## Safe reproduction checklist
 
-为保护比赛数据、运行环境和个人/团队工作目录，本仓库不直接公开：
+1. Prepare a compatible Qwen multimodal checkpoint and accelerator environment.
+2. Replace every internal path with a local argument.
+3. Use legally shareable data with the same conversation and answer format.
+4. Recreate the V4 SFT configuration from `configs/v4-sft.example.yaml`.
+5. Start RL from the resulting SFT checkpoint and apply the RLX30 configuration.
+6. Validate answer extraction locally before comparing results.
 
-- 基础模型权重和提交模型
-- 比赛私有评测集
-- 训练图片和完整训练数据
-- 未清理的原始日志压缩包
-- 内部服务器路径、账号信息和设备配置
-
-## 复现建议
-
-1. 准备兼容的 Qwen 多模态模型和公开视觉推理数据集。
-2. 按 technical-plan.md 中的训练阶段和超参数建立实验配置。
-3. 将代码中的模型、数据和设备路径替换为本地路径。
-4. 先复现 SFT 基线，再单独验证 GRPO 步数、学习率、KL 系数和数据池的影响。
-5. 对训练奖励和评测脚本使用相同的答案提取与归一化规则。
-
-## 结果解释
-
-平台成绩来自赛事方隐藏评测，重复提交存在测量噪声。仓库中的成绩和实验结论均应理解为比赛环境下的记录，不代表在其他数据集或硬件环境中的保证结果。
+The published scores are competition observations and are not a guarantee for a different dataset, checkpoint, or hardware stack.
